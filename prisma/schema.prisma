@@ -1,0 +1,267 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin-arm64"]
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?  @db.VarChar(240)
+  price         Float
+  discountPrice Float?
+  isDiscounting Boolean?
+  categoryId    Int
+  category      Category @relation(fields: [categoryId], references: [id])
+
+  vendorId Int
+  vendor   Vendor @relation(fields: [vendorId], references: [id])
+
+  thumbnail String?
+
+  slug              String
+  active            Boolean?            @default(true)
+  inventory         Int
+  rate              Int?
+  collectionProduct CollectionProduct[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  productImage ProductImage[]
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  active    Boolean?  @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Collection {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  description       String?
+  imageUrl          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  active            Boolean?            @default(true)
+  collectionProduct CollectionProduct[]
+}
+
+model CollectionProduct {
+  id           Int         @id @default(autoincrement())
+  Product      Product?    @relation(fields: [productId], references: [id])
+  productId    Int?
+  collection   Collection? @relation(fields: [collectionId], references: [id])
+  collectionId Int?
+}
+
+model Vendor {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  imageUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  product     Product[]
+}
+
+model Cart {
+  id         Int @id @default(autoincrement())
+  customerId Int
+  productId  Int
+  quantity   Int
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  username    String   @unique
+  password    String
+  fullname    String
+  email       String?  @unique
+  phoneNumber String?
+  avatar      String?
+  active      Boolean? @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order                         Order[]
+  comment                       Comment[]
+  discountOrderCustomerSpecific DiscountOrderCustomerSpecific[]
+  customerAddress               CustomerAddress[]
+}
+
+model CustomerAddress {
+  id       Int      @id @default(autoincrement())
+  name     String
+  province String
+  district String
+  commune  String
+  address  String
+  active   Boolean? @default(true)
+
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId Int?
+  order      Order[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  fullname  String
+  email     String?  @unique
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  SuperAdmin
+  Staff
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  url       String  @unique
+}
+
+enum OrderStatus {
+  Create
+  Shipping
+  Completed
+  Cancel
+}
+
+enum PaymentMethod {
+  COD
+  Credit
+}
+
+model Order {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  customerAddress   CustomerAddress @relation(fields: [customerAddressId], references: [id])
+  customerAddressId Int
+
+  discountOrder   DiscountOrder? @relation(fields: [discountOrderId], references: [id])
+  discountOrderId Int?
+
+  status OrderStatus
+
+  price         Float
+  discountPrice Float?
+
+  amount   Float?
+  quantity Int?
+
+  note String?
+
+  paymentMethod PaymentMethod
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItem OrderItem[]
+}
+
+model OrderItem {
+  id Int @id @default(autoincrement())
+
+  productId Int
+  quantity  Int
+  amount    Int
+  order     Order @relation(fields: [orderId], references: [id])
+  orderId   Int
+}
+
+enum DiscountType {
+  Fixed
+  Percentage
+}
+
+enum CustomerEligibility {
+  All
+  Specific
+}
+
+model DiscountOrder {
+  id    Int          @id @default(autoincrement())
+  code  String       @unique
+  type  DiscountType
+  value Float
+
+  minAmount   Float?
+  minQuantity Int?
+
+  numberApply Int
+
+  customerEligibility CustomerEligibility
+
+  startAt DateTime
+  endAt   DateTime
+
+  active Boolean? @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order                         Order[]
+  discountOrderCustomerSpecific DiscountOrderCustomerSpecific[]
+}
+
+model DiscountOrderCustomerSpecific {
+  id              Int           @id @default(autoincrement())
+  discountOrder   DiscountOrder @relation(fields: [discountOrderId], references: [id])
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  discountOrderId Int
+  customerId      Int
+}
+
+model DiscountProduct {
+  id Int @id @default(autoincrement())
+
+  type            DiscountType
+  fixedPrice      Float
+  percentagePrice Float
+
+  startAt DateTime
+  endAt   DateTime
+
+  active               Boolean?               @default(true)
+  discountProductApply DiscountProductApply[]
+}
+
+model DiscountProductApply {
+  id Int @id @default(autoincrement())
+
+  discountProduct   DiscountProduct @relation(fields: [discountProductId], references: [id])
+  discountProductId Int
+
+  productId Int
+}
+
+model Comment {
+  id      String @id @default(uuid())
+  content String
+
+  productId Int
+  rate      Int
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
